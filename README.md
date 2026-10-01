@@ -1,7 +1,6 @@
 # CyberQuest — Pentest RPG
 
-
-> **A propos de ce depot.** Projet realise en equipe dans le cadre de la formation STI3A (INSA Centre-Val de Loire). Depot maintenu et poursuivi par [@aziz3r](https://github.com/aziz3r), auteur de l'architecture standalone securisee (branche `proof-of-concept`). L'historique Git complet et les contributions de chaque auteur sont conserves ; voir la section des auteurs pour la repartition des roles. Depot d'origine : [JamaiAli/CyberquestProject](https://github.com/JamaiAli/CyberquestProject).
+> **Projet collectif.** CyberQuest a été réalisé en équipe par **BouazzaZayd**, **isselmou**, **JamaiAli** et **Aziz Baoueb** dans le cadre de la formation STI3A à l'INSA Centre-Val de Loire. Dépôt d'origine : [JamaiAli/CyberquestProject](https://github.com/JamaiAli/CyberquestProject). Ce dépôt est maintenu par [@aziz3r](https://github.com/aziz3r), auteur de l'architecture standalone sécurisée (branche `proof-of-concept`) ; l'historique Git complet et les droits de chaque auteur sont conservés — voir la section *Auteurs*. Code sous licence MIT, © 2026 Ali Jamai et contributeurs.
 
 Un jeu de simulation de pentest où tu incarnes un hacker infiltrant le réseau de NEXUS Corp. Déplace ton personnage GHOST sur une carte top-down vue de dessus, approche-toi des machines cibles, et attaque-les depuis le terminal intégré. Récupère les 4 flags avant la fin du compte à rebours de 6 minutes.
 
