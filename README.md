@@ -1,5 +1,8 @@
 # CyberQuest — Hacker Pentest RPG
 
+
+> **A propos de ce depot.** Projet realise en equipe dans le cadre de la formation STI3A (INSA Centre-Val de Loire). Depot maintenu et poursuivi par [@aziz3r](https://github.com/aziz3r), auteur de l'architecture standalone securisee (branche `proof-of-concept`). L'historique Git complet et les contributions de chaque auteur sont conserves ; voir la section des auteurs pour la repartition des roles. Depot d'origine : [JamaiAli/CyberquestProject](https://github.com/JamaiAli/CyberquestProject).
+
 **CyberQuest** est un jeu vidéo de simulation de pentest (tests de pénétration) conçu pour sensibiliser à la cybersécurité tout en offrant une expérience de jeu de rôle tactique (RPG). 
 
 Le joueur incarne un hacker (GHOST, PHANTOM ou VIPER) qui s'infiltre dans le réseau sécurisé de *NEXUS Corp*. À l'aide d'une carte top-down interactive et d'un **véritable terminal de commandes intégré**, le joueur doit explorer le réseau, scanner les IP, trouver les vulnérabilités et attaquer les serveurs pour récupérer 4 "Flags" (Drapeaux) avant la fin du temps imparti.
