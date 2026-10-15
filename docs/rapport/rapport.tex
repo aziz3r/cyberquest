@@ -1,0 +1,1630 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{xurl}
+\usepackage[hidelinks]{hyperref}
+\setlength{\emergencystretch}{3em}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,babel,calc}
+
+\definecolor{accent}{HTML}{0E7490}
+\definecolor{codebg}{HTML}{F6F7FB}
+\definecolor{codekw}{HTML}{7C3AED}
+\definecolor{codestr}{HTML}{15803D}
+\definecolor{codecom}{HTML}{6B7280}
+\definecolor{okgreen}{HTML}{15803D}
+\definecolor{warnred}{HTML}{B91C1C}
+\definecolor{warnorange}{HTML}{B45309}
+
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codebg},
+  framesep=6pt,
+  float=H,
+  xleftmargin=6pt,
+  showstringspaces=false,
+  columns=fullflexible,
+  literate={é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {à}{{\`a}}1 {â}{{\^a}}1
+           {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1 {ù}{{\`u}}1 {ç}{{\c c}}1 {É}{{\'E}}1
+}
+\lstdefinestyle{js}{language=Java, morekeywords={const,let,export,import,from,function,async,await,return,if,else,for,of,new,null,true,false,typeof}}
+\lstdefinestyle{plain}{language={}}
+
+\newcommand{\code}[1]{\texttt{\nolinkurl{#1}}}
+\newcommand{\file}[1]{\texttt{\nolinkurl{#1}}}
+\newcommand{\ok}{\textcolor{okgreen}{\textbf{OK}}}
+\newcommand{\ko}{\textcolor{warnred}{\textbf{échec}}}
+
+\setlist{nosep}
+\setlist[description]{itemsep=3pt,topsep=4pt}
+\captionsetup{font=small,labelfont=bf}
+\renewcommand{\arraystretch}{1.15}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\itshape CyberQuest --- Rapport technique}
+\fancyhead[R]{\small\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\tikzset{
+  box/.style={draw=accent, rounded corners=2pt, fill=accent!8, align=center, inner sep=4pt, font=\small},
+  boxg/.style={draw=black!50, rounded corners=2pt, fill=black!4, align=center, inner sep=4pt, font=\small},
+  boxw/.style={draw=warnred!70, rounded corners=2pt, fill=warnred!8, align=center, inner sep=4pt, font=\small},
+  flow/.style={-{Stealth[length=2.2mm]}, thick, accent!80!black},
+  flowg/.style={-{Stealth[length=2.2mm]}, thick, black!55},
+  lbl/.style={font=\scriptsize\itshape, fill=white, inner sep=1.5pt}
+}
+
+\title{%
+  \vspace{-1.5cm}
+  {\Huge\bfseries CyberQuest}\\[0.4cm]
+  {\Large Un jeu de r\^ole d'apprentissage du test d'intrusion\\jouable dans le navigateur}\\[1.2cm]
+  {\large Rapport technique}
+}
+\author{Mohamed Aziz Baoueb}
+\date{Projet d'Application STI~3A --- INSA Centre-Val de Loire\\
+Juin 2026\\[0.6cm]
+\small Rapport r\'edig\'e en octobre 2026}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent
+\textbf{CyberQuest} est un jeu de r\^ole en ligne, jouable dans un navigateur web,
+qui enseigne les bases du \emph{test d'intrusion} (\emph{pentest}) de mani\`ere
+ludique. Le joueur incarne \textsc{Ghost}, un hacktiviste qui s'infiltre dans le
+r\'eseau d'une m\'egacorporation fictive, \textsc{Nexus Corp}. Il se d\'eplace sur une
+carte vue de dessus, entre dans des salles de serveurs, et y r\'esout des d\'efis
+guid\'es : compromission d'un domaine Active Directory, exploitation de failles web
+du top~10 de l'OWASP, ma\^itrise du terminal Linux, et manipulation d'assistants
+d'intelligence artificielle par \emph{prompt injection}.
+
+Tout se passe dans un environnement \emph{simul\'e} : aucune commande ne touche un
+v\'eritable r\'eseau. Le projet a \'et\'e r\'ealis\'e en juin 2026 par une \'equipe de quatre
+\'etudiants, en une semaine de d\'eveloppement intensif, et existe sous deux formes
+d'architecture : une version client-serveur (\code{master}) et une version
+enti\`erement embarqu\'ee dans le navigateur (\code{proof-of-concept}).
+
+Ce document est con\c cu pour qu'une personne qui n'a jamais vu le projet puisse le
+comprendre de bout en bout : son but, son fonctionnement, les technologies
+employ\'ees et les raisons de ces choix, son contenu p\'edagogique, sa s\'ecurit\'e, et
+son \'etat r\'eel. Il adopte volontairement un regard critique : plusieurs
+affirmations de la documentation du projet ont \'et\'e v\'erifi\'ees dans le code, et les
+\'ecarts constat\'es sont signal\'es.
+\end{abstract}
+
+\tableofcontents
+
+% =====================================================================
+\chapter{Introduction et contexte}
+
+\section{Le besoin}
+
+Apprendre la s\'ecurit\'e offensive est difficile pour un d\'ebutant. Les approches
+habituelles sont de deux sortes : les plateformes de \emph{CTF} (\emph{Capture The
+Flag}), qui proposent des \'enigmes isol\'ees, souvent austères ; et les environnements
+de laboratoire, qui demandent d'installer des machines virtuelles, de configurer un
+r\'eseau, parfois de se connecter par VPN. Dans les deux cas, la barri\`ere d'entr\'ee
+est haute, et l'immersion faible : on ne comprend pas toujours \emph{pourquoi} on tape
+telle commande \`a tel moment.
+
+CyberQuest r\'epond \`a ce probl\`eme en combinant deux ingr\'edients :
+\begin{itemize}
+  \item une \textbf{narration et une interface de jeu} (une carte, un personnage,
+        un compte \`a rebours, des scores) qui donnent un contexte et une motivation ;
+  \item des \textbf{terminaux simul\'es} dans lesquels le joueur tape de \emph{vraies}
+        commandes (\code{nmap}, \code{sqlmap}, \code{hydra}, \code{evil-winrm}\ldots),
+        accompagn\'ees d'objectifs, d'indices et d'explications.
+\end{itemize}
+
+\section{Le projet en quelques lignes}
+
+Le joueur se d\'eplace avec les fl\`eches du clavier sur une carte du r\'eseau de
+\textsc{Nexus Corp}. En s'approchant d'une machine, il peut y entrer et r\'esoudre
+une s\'erie de niveaux. Une fois toutes les salles termin\'ees, la machine centrale
+(le \emph{Mainframe}) devient accessible : le joueur y d\'eclenche l'exfiltration des
+donn\'ees puis doit regagner son point de d\'epart en 45 secondes pour gagner.
+L'ensemble de la partie est limit\'e \`a 60 minutes.
+
+\section{Cadre et \'equipe}
+
+CyberQuest est un \textbf{projet collectif}, r\'ealis\'e dans le cadre du \emph{Projet
+d'Application STI~3A} \`a l'INSA Centre-Val de Loire, dans la continuit\'e des travaux
+pratiques de cybers\'ecurit\'e de l'\'etablissement. Les r\^oles, tels qu'ils figurent dans
+le fichier \file{README.md} du projet, sont les suivants :
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Auteur} & \textbf{R\^ole d\'eclar\'e} \\
+\midrule
+BouazzaZayd & Moteur backend et logique de pentest \\
+isselmou    & Carte interactive et terminal \\
+JamaiAli    & Interface, int\'egration, LLM et exp\'erience utilisateur \\
+Aziz Baoueb & Co-conception initiale ; architecture autonome s\'ecuris\'ee
+              (branche \code{proof-of-concept}) \\
+\bottomrule
+\end{tabularx}
+\caption{R\'epartition des r\^oles}
+\end{table}
+
+Le d\'ep\^ot d'origine est \texttt{JamaiAli/CyberquestProject}. Le d\'ep\^ot
+\texttt{aziz3r/cyberquest}, \`a l'origine du pr\'esent rapport, maintient la version
+autonome. Le code est publi\'e sous licence MIT. L'historique Git complet et les droits
+de chaque auteur sont conserv\'es.
+
+\section{Objectifs}
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[Objectif p\'edagogique] Faire d\'ecouvrir, de fa\c con progressive et guid\'ee, les
+        grandes \'etapes d'une intrusion : reconnaissance, \'enum\'eration, exploitation,
+        \'el\'evation de privil\`eges, mouvement lat\'eral, exfiltration.
+  \item[Objectif de couverture] Aborder trois domaines que l'on rencontre
+        aujourd'hui en s\'ecurit\'e : les syst\`emes d'information d'entreprise
+        (Active Directory), les applications web (OWASP), et les mod\`eles de
+        langage (prompt injection).
+  \item[Objectif d'accessibilit\'e] Fonctionner dans un simple navigateur, sans
+        installation de machine virtuelle ni acc\`es \`a un r\'eseau r\'eel.
+  \item[Objectif d'ing\'enierie] Montrer qu'un jeu qui parle de s\'ecurit\'e doit lui-m\^eme
+        \^etre construit avec soin : authentification, protection des sauvegardes,
+        politique de s\'ecurit\'e du navigateur.
+\end{description}
+
+\section{Public vis\'e}
+
+\begin{itemize}
+  \item les \textbf{\'etudiants} en informatique ou en r\'eseaux, qui d\'ecouvrent le pentest ;
+  \item les \textbf{enseignants} qui veulent un support d'entra\^inement ludique ;
+  \item les \textbf{curieux} et les passionn\'es de cybers\'ecurit\'e, notamment sur le
+        th\`eme r\'ecent de la s\'ecurit\'e des mod\`eles de langage.
+\end{itemize}
+
+\section{Cadre \'ethique}
+
+Le jeu enseigne des techniques d'attaque. Il le fait dans un cadre strictement
+\emph{simul\'e} : les sorties des outils sont g\'en\'er\'ees par le code du jeu, aucune
+requ\^ete n'est envoy\'ee \`a une machine r\'eelle, et les identifiants, adresses et
+failles rencontr\'es sont fictifs ou issus d'applications volontairement vuln\'erables
+(DVWA). Un \'ecran d'accueil rappelle ce cadre \`a l'utilisateur : \og toutes les
+commandes sont ex\'ecut\'ees dans un environnement simul\'e et s\'ecuris\'e \fg.
+
+\section{Comment lire ce rapport}
+
+Le chapitre~\ref{chap:jeu} pr\'esente le jeu tel que le voit un joueur. Le
+chapitre~\ref{chap:techno} d\'ecrit les technologies. Les chapitres~\ref{chap:archi}
+et~\ref{chap:moteur} d\'etaillent l'architecture et le moteur. Le
+chapitre~\ref{chap:peda} d\'ecrit le contenu p\'edagogique, et le
+chapitre~\ref{chap:ia} l'usage de l'intelligence artificielle. La s\'ecurit\'e fait
+l'objet du chapitre~\ref{chap:secu}, l'\'etat r\'eel du projet du
+chapitre~\ref{chap:etat}. Un glossaire (annexe~\ref{ann:glossaire}) explique les
+termes techniques.
+
+\section{M\'ethode et limites de cette revue}
+
+Ce rapport s'appuie sur la lecture du code des deux branches, sur la vid\'eo de
+d\'emonstration du projet, et sur des essais men\'es le 15 octobre 2026 sur un clone
+neuf du d\'ep\^ot (Node.js~22.17, npm~10.9). Quand une information de la documentation
+du projet diff\`ere du code, c'est le code qui fait foi et l'\'ecart est indiqu\'e.
+
+Ce qui n'a \emph{pas} \'et\'e v\'erifi\'e : l'ex\'ecution du serveur de la branche
+\code{master} (elle n\'ecessite des cl\'es d'API que je ne poss\`ede pas), le
+comportement r\'eel des mod\`eles de langage face aux d\'efis, et la r\'esistance des
+protections c\^ot\'e client \`a un joueur d\'etermin\'e. Les captures d'\'ecran de ce rapport
+proviennent de la vid\'eo de d\'emonstration, qui montre la branche \code{master}.
+
+% =====================================================================
+\chapter{D\'ecouvrir le jeu}
+\label{chap:jeu}
+
+\section{Le sc\'enario}
+
+Nous sommes en 2077. La m\'egacorporation \textsc{Nexus Corp} a vol\'e les donn\'ees de
+millions de citoyens. Le joueur est \textsc{Ghost}, un hacktiviste d'\'elite
+d\'etermin\'e \`a la faire tomber. Pour y parvenir, il doit explorer le r\'eseau de
+l'entreprise, s'infiltrer dans plusieurs salles de serveurs et r\'esoudre les
+d\'efis de cybers\'ecurit\'e que chacune abrite. Un personnage-guide, \textsc{Oracle}, est
+pr\'evu pour commenter la progression (arriv\'ee pr\`es d'une machine, alertes de temps) ;
+dans l'\'etat actuel du code, ses messages ne sont plus affich\'es (voir la
+section~\ref{sec:terminaux}).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/landing.jpg}
+\caption{\'Ecran d'accueil : sc\'enario et les quatre axes d'apprentissage (ma\^itrise
+de Linux, reconnaissance, exploitation web et Active Directory, post-exploitation).
+Capture de la vid\'eo de d\'emonstration.}
+\end{figure}
+
+\section{Le parcours d'un joueur}
+
+\begin{enumerate}
+  \item \textbf{Avertissement et accueil} : un \'ecran pr\'esente le sc\'enario et rappelle
+        que tout est simul\'e.
+  \item \textbf{Connexion ou inscription} : le joueur choisit un alias.
+  \item \textbf{Introduction} : une courte s\'equence de d\'emarrage (\emph{SYS BOOT})
+        pr\'epare l'immersion.
+  \item \textbf{Carte du r\'eseau} : le joueur d\'eplace \textsc{Ghost} avec les fl\`eches.
+        Quand il s'approche d'une machine, un bouton propose d'entrer dans la salle.
+  \item \textbf{Salles} : chaque salle contient une suite de niveaux avec un
+        terminal, une liste d'objectifs et des indices.
+  \item \textbf{Mainframe} : une fois les salles termin\'ees, le c{\oe}ur du r\'eseau
+        s'ouvre. L'exfiltration d\'eclenche une alarme et un d\'ecompte de 45 secondes.
+  \item \textbf{Fin} : \'ecran de victoire (pluie de caract\`eres fa\c con \emph{Matrix}) si le
+        joueur est revenu \`a son point de d\'epart \`a temps, \'ecran de d\'efaite sinon.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=10mm and 9mm]
+  \node[box] (disc) {Avertissement\\accueil};
+  \node[box, right=of disc] (auth) {Connexion /\\inscription};
+  \node[box, right=of auth] (intro) {Introduction\\(SYS BOOT)};
+  \node[box, right=of intro] (carte) {Carte\\du réseau};
+  \node[box, above=of carte] (salles) {Salles\\(niveaux)};
+  \node[box, below=of carte] (main) {Mainframe};
+  \node[box, left=of main] (esc) {Évasion\\45\,s};
+  \node[boxg, left=of esc] (win) {Victoire};
+  \node[boxw, below=of main] (over) {Game over};
+  \draw[flow] (disc) -- (auth);
+  \draw[flow] (auth) -- (intro);
+  \draw[flow] (intro) -- (carte);
+  \draw[flow] ([xshift=-2mm]carte.north) -- ([xshift=-2mm]salles.south);
+  \draw[flow] ([xshift=2mm]salles.south) -- ([xshift=2mm]carte.north);
+  \draw[flow] (carte) -- node[lbl,right] {toutes les salles} (main);
+  \draw[flow] (main) -- (esc);
+  \draw[flow] (esc) -- (win);
+  \draw[flowg] (carte.east) to[out=0,in=0,looseness=1.8]
+        node[lbl,right] {60\,min écoulées} (over.east);
+  \draw[flowg] (esc.south) |- node[lbl,pos=0.75,above] {45\,s écoulées} (over.west);
+\end{tikzpicture}
+\caption{Enchaînement des écrans (machine à états de \texttt{App.jsx}).}
+\label{fig:ecrans}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/login.jpg}
+\caption{\'Ecran de connexion (th\`eme cyberpunk). Capture de la vid\'eo de
+d\'emonstration.}
+\end{figure}
+
+\section{La carte et ses zones}
+
+La carte est une grille de $20 \times 16$ cases. Les zones sont reli\'ees par des
+couloirs ; le joueur ne peut pas traverser les murs ni les b\^atiments.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=0.55cm,y=0.55cm]
+\input{grille.tikz.tex}
+\end{tikzpicture}
+\caption{Grille de la carte, g\'en\'er\'ee \`a partir de \texttt{map.js} (branche
+\texttt{proof-of-concept}). Cases claires : couloirs praticables. Le point noir
+est le point d'apparition de \textsc{Ghost}.}
+\label{fig:grille}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/carte.jpg}
+\caption{La carte du réseau dans le jeu (branche \texttt{master}) : base Kali en haut,
+zones Linux, Active Directory, Web Application, AI\_CORE, et Mainframe en bas. Le
+chronomètre, les scores et le bouton de test sont dans la barre du haut.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llXl@{}}
+\toprule
+\textbf{Zone} & \textbf{Adresse} & \textbf{Contenu} & \textbf{Branche} \\
+\midrule
+Kali (base)        & 10.0.0.1      & Point de départ du joueur. & les deux \\
+Active Directory   & 192.168.1.10  & 6 étapes d'attaque d'un domaine Windows. & les deux \\
+Web Application    & 192.168.1.20  & 13 niveaux de failles web (OWASP / DVWA). & les deux \\
+AI\_CORE           & 10.0.0.99     & 2 défis de \emph{prompt injection}. & les deux \\
+Linux Commands     & ---           & 8 niveaux de formation au terminal Linux. & \code{master} \\
+NEXUS Mainframe    & 10.0.0.0      & Cible finale, exfiltration et évasion. & les deux \\
+\bottomrule
+\end{tabularx}
+\caption{Zones de la carte. Les adresses sont celles de \file{map.js}.}
+\end{table}
+
+\section{Conditions de victoire et de d\'efaite}
+
+\begin{itemize}
+  \item \textbf{Victoire} : atteindre le Mainframe, lancer l'exfiltration, puis
+        ramener \textsc{Ghost} \`a son point d'apparition (juste sous la base Kali) en moins
+        de 45 secondes.
+  \item \textbf{D\'efaite} : le chronom\`etre global de 60 minutes (\texttt{3600} secondes)
+        atteint z\'ero, ou le d\'ecompte d'\'evasion de 45 secondes expire.
+  \item \textbf{Alertes} : le code pr\'evoit des messages d'\textsc{Oracle} \`a 2~minutes
+        puis \`a 1~minute de la fin, mais ils ne sont plus visibles (section~\ref{sec:terminaux}) ;
+        le chronom\`etre, lui, reste affich\'e dans la barre sup\'erieure.
+\end{itemize}
+
+Le Mainframe n'est accessible que lorsque les trois ensembles de niveaux suivants sont
+termin\'es : les 13 niveaux web, les 6 \'etapes Active Directory et les 6 niveaux de
+\emph{prompt injection} (voir la section~\ref{sec:limites-pi} sur une particularit\'e de
+ce dernier module).
+
+\section{Exp\'erience et points}
+
+Chaque action r\'eussie rapporte de l'exp\'erience (XP). Le niveau du joueur est
+$\lfloor \text{XP}/100 \rfloor + 1$ ; chaque passage de niveau augmente ses points de
+vie maximum de 20 et en restaure 20. Un tableau des scores classe les joueurs par XP.
+Les d\'efis d'IA rapportent des points fixes (200 et 250).
+
+% =====================================================================
+\chapter{Les technologies}
+\label{chap:techno}
+
+Ce chapitre d\'ecrit la pile technique. Les versions sont celles d\'eclar\'ees dans les
+fichiers \file{package.json} des deux branches.
+
+\section{C\^ot\'e navigateur}
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[React 18] Biblioth\`eque d'interface : l'écran est d\'ecrit comme un arbre de
+        \emph{composants}, des fonctions qui retournent ce qu'il faut afficher. Le
+        projet utilise les \emph{hooks} (\texttt{useState}, \texttt{useEffect},
+        \texttt{useRef}, \texttt{useCallback}). React \'echappe par d\'efaut le texte
+        affich\'e, ce qui prot\`ege des injections de script (XSS).
+  \item[Vite] Outil de d\'eveloppement et d'empaquetage : il sert l'application en
+        d\'eveloppement (avec rechargement \`a chaud) et produit les fichiers optimis\'es
+        pour la production. Version~5 sur \code{master}, version~8 sur
+        \code{proof-of-concept}.
+  \item[Canvas 2D] Zone de dessin du navigateur. La carte (b\^atiments, c\^ables
+        r\'eseau, personnage, particules) y est redessin\'ee environ 60~fois par seconde.
+  \item[Web Audio API] Interface de synth\`ese sonore du navigateur. Tous les sons du
+        jeu sont \emph{calcul\'es} par oscillateurs : aucun fichier audio n'est
+        t\'el\'echarg\'e.
+  \item[xterm.js 5] \'Emulateur de terminal utilis\'e par VS Code. Il alimente le
+        terminal global \emph{historique} du jeu (voir la
+        section~\ref{sec:terminaux}).
+  \item[Stockage local] \texttt{localStorage} conserve la sauvegarde dans la version
+        autonome.
+\end{description}
+
+La biblioth\`eque d'animation \texttt{animejs} est utilis\'ee par le d\'ecor de ville
+(\file{CyberpunkCityscape.jsx}). La biblioth\`eque de jeu \texttt{phaser} est d\'eclar\'ee dans
+le \file{package.json} du frontend, mais aucune importation n'en a \'et\'e relev\'ee dans
+\file{frontend/src} (recherche textuelle) : c'est une d\'ependance inutile \`a retirer.
+\medskip
+
+\section{C\^ot\'e serveur (branche \texttt{master})}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Biblioth\`eque} & \textbf{Version} & \textbf{R\^ole} \\
+\midrule
+Node.js / Express   & 4.18   & Serveur HTTP et routage de l'API REST. \\
+sqlite3             & 6      & Base de donn\'ees embarqu\'ee, stock\'ee dans un fichier unique. \\
+bcryptjs            & 3      & Hachage lent des mots de passe. \\
+jsonwebtoken        & 9      & Jetons d'authentification (JWT). \\
+cookie-parser, cors & ---    & Lecture des cookies ; autorisation des origines. \\
+dotenv              & 17     & Lecture des variables d'environnement (secrets, cl\'es). \\
+\bottomrule
+\end{tabularx}
+\caption{D\'ependances du serveur.}
+\end{table}
+
+\section{Intelligence artificielle}
+
+La branche \code{master} appelle deux services d'IA g\'en\'erative via leur API
+compatible OpenAI : \textbf{Google Gemini} (mod\`ele \texttt{gemini-2.5-flash} par
+d\'efaut, jusqu'\`a quatre cl\'es en rotation) et \textbf{Groq} (mod\`ele
+\texttt{llama-3.3-70b-versatile}) en secours. Le chapitre~\ref{chap:ia} d\'etaille
+leur usage.
+
+\section{Pourquoi ces choix ?}
+
+\begin{itemize}
+  \item \textbf{SQLite plut\^ot qu'un serveur de base de donn\'ees} : un seul fichier, aucun
+        service \`a installer, d\'emarrage imm\'ediat --- adapt\'e \`a un projet \'etudiant et
+        \`a un d\'eploiement en salle de classe.
+  \item \textbf{Canvas plut\^ot que des \'el\'ements HTML} : un dessin anim\'e en continu avec
+        de nombreux \'el\'ements est plus fluide sur un canvas.
+  \item \textbf{Audio synth\'etis\'e} : z\'ero fichier \`a charger, z\'ero latence \`a la
+        frappe d'une touche.
+  \item \textbf{Deux architectures} : voir la section~\ref{sec:deux-archi}.
+\end{itemize}
+
+% =====================================================================
+\chapter{Architecture}
+\label{chap:archi}
+
+\section{Deux architectures pour un m\^eme jeu}
+\label{sec:deux-archi}
+
+Le projet existe sous deux formes, port\'ees par deux branches Git, qui r\'epondent \`a des
+contraintes diff\'erentes.
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[\code{master} --- client-serveur] Un serveur Node.js g\`ere les comptes, la
+        base de donn\'ees et les appels aux services d'IA. C'est la forme adapt\'ee \`a un
+        d\'eploiement r\'eel (\'ecole, plateforme) o\`u l'on veut des comptes, un classement
+        fiable et des IA authentiques.
+  \item[\code{proof-of-concept} --- autonome] Tout le jeu s'ex\'ecute dans le
+        navigateur. Aucun serveur, aucune base : l'\'etat est sauvegard\'e localement. C'est
+        la forme adapt\'ee \`a une d\'emonstration sur un salon, un hackathon, ou une
+        utilisation hors ligne.
+\end{description}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=16mm and 24mm, box/.append style={text width=3cm}, boxg/.append style={text width=3cm}]
+  \node[box] (nav) {Navigateur\\React, Canvas,\\modules de niveau};
+  \node[box, right=of nav] (api) {API Express\\(Node.js, port 3001)};
+  \node[boxg, right=of api] (llm) {Gemini / Groq\\(API externes)};
+  \node[boxg, below=of api] (db) {SQLite\\\texttt{cyberquest.db}};
+  \draw[flow] (nav) -- node[lbl,above] {HTTP + JWT} (api);
+  \draw[flow] (api) -- node[lbl,above] {défis, MENTOR} (llm);
+  \draw[flow] (api) -- node[lbl,right] {comptes, état} (db);
+\end{tikzpicture}
+\caption{Architecture de la branche \texttt{master}.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=16mm and 30mm]
+  \node[box, text width=4.4cm] (nav) {Navigateur\\React, Canvas, modules de niveau,\\moteur de jeu embarqué};
+  \node[boxg, text width=3.2cm, right=of nav] (ls) {localStorage\\(sauvegarde signée)};
+  \draw[flow] (nav) -- node[lbl,above] {lecture / écriture} (ls);
+\end{tikzpicture}
+\caption{Architecture de la branche \texttt{proof-of-concept} : aucun serveur.}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+ & \textbf{\code{master}} & \textbf{\code{proof-of-concept}} \\
+\midrule
+Persistance      & SQLite (\texttt{users.game\_state}, JSON) & \texttt{localStorage} signé \\
+Authentification & inscription / connexion r\'eelles (bcrypt, JWT) & formulaire sans v\'erification \\
+Intelligence artificielle & Gemini / Groq via le serveur & r\'eponses script\'ees locales \\
+Salle Linux      & oui, 8 niveaux (shell simul\'e par LLM) & absente \\
+Vite             & version 5 & version 8 \\
+Code frontend    & 3\,500 lignes JS, 6\,951 JSX, 780 CSS & 6\,358 JS, 6\,155 JSX, 780 CSS \\
+Code serveur     & 4\,466 lignes JS & 4\,067 lignes JS (non utilisé) \\
+Usage vis\'e     & d\'eploiement scolaire / en ligne & d\'emonstration, hors ligne \\
+\bottomrule
+\end{tabularx}
+\caption{Comparaison des deux branches (lignes comptées dans \file{src} et \file{backend}).}
+\end{table}
+
+Dans la branche autonome, le dossier \file{backend} est conserv\'e dans le d\'ep\^ot mais
+n'est plus utilis\'e : le frontend n'effectue aucun appel r\'eseau (aucune occurrence de
+\texttt{fetch} dans \file{frontend/src}).
+
+\section{Structure du d\'ep\^ot}
+
+\begin{lstlisting}[style=plain,caption={Arborescence simplifi\'ee de la branche \texttt{proof-of-concept}}]
+cyberquest/
+  backend/           serveur Express (herite de master, non utilise ici)
+  frontend/
+    index.html       point d'entree, politique de securite (CSP)
+    vite.config.js   configuration de build
+    public/          images des batiments (14 PNG)
+    src/
+      App.jsx        machine a etats, minuteur, deplacement, ecrans
+      map.js         grille 20x16, machines, cables
+      sounds.js      sons synthetises (Web Audio API)
+      engine/        gameState.js, cryptoUtils.js, commandEngine.js
+      levels/        webLevels, adLevels, promptInjectionLevels, ...
+      components/    GameMap, HUD, LevelView, ADLevelView, ...
+      styles/        main.css, intro.css, disclaimer.css
+  poc/               premier prototype (formulaire + localStorage)
+  README.md  LICENSE  architecture.txt  anti_seche_soutenance.md
+\end{lstlisting}
+
+\section{La machine \`a \'etats de l'application}
+
+Le composant racine \file{App.jsx} (691 lignes) orchestre le jeu. Il maintient une
+variable \texttt{screen} qui prend les valeurs \texttt{intro}, \texttt{game},
+\texttt{gameover} ou \texttt{victory}, et affiche l'\'ecran correspondant
+(figure~\ref{fig:ecrans}). Pendant la partie, il g\`ere aussi :
+
+\begin{itemize}
+  \item l'ouverture des salles (cartes de niveaux, vues de niveau) ;
+  \item le minuteur global et le minuteur d'\'evasion ;
+  \item le d\'eplacement du personnage au clavier ;
+  \item des \emph{r\'ef\'erences} (\texttt{useRef}) partag\'ees avec le canvas, pour
+        \'eviter de redessiner la carte \`a chaque changement d'\'etat React.
+\end{itemize}
+
+\section{Le flux d'une action}
+
+Dans les salles de la version actuelle, la progression est calcul\'ee par des
+\emph{modules de niveau}, des fonctions pures c\^ot\'e navigateur qui re\c coivent la
+commande tap\'ee et l'avancement du joueur, et renvoient les lignes \`a afficher, le nouvel
+avancement et un indicateur de r\'eussite. Pour le moteur historique de commandes
+(\code{commandEngine}), le flux diff\`ere selon la branche :
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}clX@{}}
+\toprule
+\textbf{\'Etape} & \textbf{\code{master}} & \textbf{\code{proof-of-concept}} \\
+\midrule
+1 & Le joueur valide une commande & Idem \\
+2 & Requ\^ete \texttt{POST /api/command} avec le jeton JWT & Appel direct de \texttt{processCommand(commande, état)} \\
+3 & Le serveur charge l'\'etat depuis SQLite & L'\'etat est lu depuis \texttt{localStorage} \\
+4 & \texttt{processCommand} calcule la sortie & Idem, dans le navigateur \\
+5 & Niveau et points de vie recalcul\'es, \'etat sauvegard\'e en base & \'Etat recalcul\'e, sign\'e, \'ecrit dans \texttt{localStorage} \\
+6 & R\'eponse JSON, mise \`a jour de l'affichage & Mise \`a jour imm\'ediate de l'affichage \\
+\bottomrule
+\end{tabularx}
+\caption{Traitement d'une commande dans le moteur historique.}
+\end{table}
+
+\section{L'API du serveur (branche \texttt{master})}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Route} & \textbf{Auth.} & \textbf{R\^ole} \\
+\midrule
+\texttt{POST /api/auth/register}        & non & Cr\'eation de compte. \\
+\texttt{POST /api/auth/login}           & non & Connexion ; renvoie un jeton d'acc\`es. \\
+\texttt{POST /api/auth/refresh}         & cookie & Nouveau jeton \`a partir du cookie de rafra\^ichissement. \\
+\texttt{POST /api/auth/logout}          & non & Supprime le cookie. \\
+\texttt{GET  /api/auth/security-question} & non & Question de s\'ecurit\'e (mot de passe oubli\'e). \\
+\texttt{POST /api/auth/reset-password}  & non & Nouveau mot de passe via la r\'eponse de s\'ecurit\'e. \\
+\texttt{POST /api/command}              & JWT & Traite une commande, met \`a jour l'\'etat. \\
+\texttt{GET  /api/state}                & JWT & Renvoie l'\'etat du joueur. \\
+\texttt{POST /api/sentinel}             & JWT & D\'efis d'IA (AI\_CORE). \\
+\texttt{POST /api/linux-sim}            & JWT & Terminal Linux simul\'e par LLM. \\
+\texttt{POST /api/ad-sim}               & JWT & Terminal AD hors sc\'enario. \\
+\texttt{POST /api/assistant}            & JWT & Assistant p\'edagogique MENTOR. \\
+\texttt{GET  /api/scoreboard}           & non & Les 10 meilleurs scores. \\
+\bottomrule
+\end{tabularx}
+\caption{Routes de l'API (\file{backend/server.js}, branche \texttt{master}).}
+\end{table}
+
+\section{Mod\`ele de donn\'ees}
+
+Le serveur utilise une seule table, \texttt{users}.
+
+\begin{lstlisting}[style=plain,caption={Table \texttt{users} (\file{backend/database/db.js})}]
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  security_question TEXT NOT NULL,
+  security_answer_hash TEXT NOT NULL,
+  xp INTEGER DEFAULT 0,
+  level INTEGER DEFAULT 1,
+  game_state TEXT,                -- JSON serialise de l'etat de jeu
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+\end{lstlisting}
+
+L'\'etat de jeu lui-m\^eme est un objet JavaScript s\'erialis\'e dans la colonne
+\texttt{game\_state} (serveur) ou dans \texttt{localStorage} (version autonome) :
+
+\begin{lstlisting}[style=js,caption={Etat initial d'une partie (\file{frontend/src/engine/gameState.js})}]
+{ sessionId, xp: 0, level: 1, hp: 100, maxHp: 100,
+  mode: 'NETWORK',                 // 'NETWORK' ou 'MACHINE'
+  pwnedMachines: [], scannedMachines: [],
+  unlockedMachines: ['webserver', 'mailserver'],
+  currentMachine: null, machinePhase: 0,   // 0=recon 1=scan 2=exploit 3=post
+  rootObtained: false, score: 0, startTime: Date.now(),
+  hydraDone: false, asrepDone: false, ntdsDumped: false /* ... */ }
+\end{lstlisting}
+
+La progression dans les salles (niveaux termin\'es) est tenue dans l'\'etat React de
+\file{App.jsx} : dans la version autonome, elle n'est donc pas sauvegard\'ee et
+dispara\^it au rechargement de la page.
+
+% =====================================================================
+\chapter{Le moteur de jeu}
+\label{chap:moteur}
+
+\section{La carte}
+
+La carte est d\'efinie dans \file{map.js} par un tableau \`a deux dimensions : \texttt{0}
+pour une case praticable, \texttt{1} pour un mur, \texttt{3} pour un b\^atiment (machine).
+Chaque case mesure 48 pixels, soit un canvas de $960 \times 768$ pixels.
+
+\begin{lstlisting}[style=js,caption={Extrait de \file{map.js}}]
+export const TILE_SIZE = 48;
+export const MAP_COLS  = 20;
+export const MAP_ROWS  = 16;
+export const TILE = { FLOOR: 0, WALL: 1, MACHINE: 3 };
+export const GHOST_SPAWN = { col: 9, row: 3 };   // juste sous la base Kali
+export const MACHINE_POSITIONS = {
+  kali:       { col: 8, row: 1,  w: 4, h: 2, ip: '10.0.0.1',    type: 'hub' },
+  aicore:     { col: 8, row: 9,  w: 4, h: 2, ip: '10.0.0.99',   difficulty: 'hard' },
+  mainframe:  { col: 8, row: 13, w: 4, h: 2, ip: '10.0.0.0',    difficulty: 'extreme' },
+  /* ... */
+};
+\end{lstlisting}
+
+\section{D\'eplacement et collisions}
+
+\`A chaque appui sur une fl\`eche, le code calcule la case d'arriv\'ee et la refuse si elle
+sort de la grille ou si c'est un mur ou un b\^atiment. Les fl\`eches sont ignor\'ees quand le
+focus est dans un champ de saisie, pour ne pas d\'eplacer le personnage pendant que le
+joueur tape une commande.
+
+\section{D\'etection de proximit\'e}
+
+Pour savoir si le joueur est assez proche d'une machine, le jeu calcule la
+\textbf{distance de Manhattan} (somme des \'ecarts en colonnes et en lignes) entre le
+joueur et le rectangle de la machine :
+
+\begin{lstlisting}[style=js,caption={Proximit\'e d'une machine (\file{App.jsx})}]
+const clampedCol = Math.max(pos.col, Math.min(nCol, pos.col + pos.w - 1));
+const clampedRow = Math.max(pos.row, Math.min(nRow, pos.row + pos.h - 1));
+const dist = Math.abs(nCol - clampedCol) + Math.abs(nRow - clampedRow);
+if (dist <= 1 && dist < closestDist) { closestDist = dist; closestId = id; }
+\end{lstlisting}
+
+La machine est donc proche quand le joueur est sur l'une des quatre cases directement
+adjacentes \`a son rectangle. Les b\^atiments faisant $4 \times 2$ cases, on projette
+d'abord la position du joueur sur ce rectangle (\emph{clamp}).
+
+\section{Rendu et animation}
+
+Le composant \file{GameMap.jsx} dessine la carte avec l'API Canvas 2D dans une boucle
+\texttt{requestAnimationFrame}, qui s'ex\'ecute \`a la cadence de l'\'ecran (typiquement
+60~images par seconde). Le d\'eplacement du personnage utilise une
+\textbf{interpolation lin\'eaire} (\emph{lerp}) pour \'eviter le saut brusque de case en
+case :
+\[
+  p \leftarrow p + (c - p) \times 0{,}18
+\]
+o\`u $p$ est la position dessin\'ee et $c$ la position cible. La position logique change
+instantan\'ement, tandis que la position dessin\'ee la
+rattrape progressivement (coefficient $0{,}18$ dans le code), ce qui produit un
+mouvement fluide qui ralentit en approchant de la case. Le m\^eme composant dessine les
+c\^ables r\'eseau (qui changent de couleur lorsqu'une machine est compromise), les
+particules d'ambiance et les b\^atiments.
+
+\section{Les terminaux}
+\label{sec:terminaux}
+
+Il existe deux types de terminal dans le code :
+
+\begin{itemize}
+  \item \texttt{Terminal.jsx}, bas\'e sur \textbf{xterm.js} : c'\'etait le terminal global
+        de la carte. Il g\`ere l'historique (fl\`eches haut et bas), l'autocompl\'etion
+        (touche \texttt{Tab}) et les couleurs ANSI. Depuis le commit du 17~juin 2026
+        (\og suppression terminal principal --- les niveaux AD et Web ont leur propre
+        terminal \fg), ce composant \textbf{n'est plus affich\'e} par \file{App.jsx}.
+        Cons\'equence : les messages d'\textsc{Oracle}, qui \'etaient \'ecrits dans ce
+        terminal par l'interm\'ediaire d'une r\'ef\'erence que seul lui renseignait, ne
+        s'affichent plus (le code d'envoi existe toujours dans \file{App.jsx}).
+  \item \texttt{LevelTerminal.jsx} : un terminal l\'eger en React pur (94 lignes) utilis\'e
+        dans toutes les salles actuelles. Il affiche une liste de lignes color\'ees,
+        un invite (\texttt{attacker@kali:\~{}/pentest\$}) et garde un historique de 50
+        commandes.
+\end{itemize}
+
+\section{Les modules de niveau}
+
+Chaque famille de niveaux est un module JavaScript pur (sans React), situ\'e dans
+\file{frontend/src/levels/}. Il fournit : la liste des niveaux, l'\'etat de d\'epart,
+les objectifs \`a afficher, les indices, la \og prochaine \'etape \fg, et une fonction qui
+traite une commande et renvoie les lignes de sortie. Les objectifs sont valid\'es par des
+expressions r\'eguli\`eres sur la commande tap\'ee, dans l'ordre attendu par le sc\'enario.
+Cette conception rend la logique facile \`a tester \emph{en th\'eorie} (fonctions pures),
+m\^eme si aucun test automatis\'e n'existe aujourd'hui.
+
+\section{Le moteur historique de commandes}
+
+\file{commandEngine.js} (3\,322 lignes) est le premier moteur du projet. Il simule plus
+de soixante commandes (\texttt{nmap}, \texttt{nikto}, \texttt{gobuster}, \texttt{hydra},
+\texttt{evil-winrm}, \texttt{secretsdump}, \texttt{bloodhound}, \texttt{crackmapexec}\ldots) contre quatre machines d\'efinies dans le code, chacune
+parcourue en quatre \textbf{phases} : reconnaissance, scan, exploitation,
+post-exploitation. Chaque phase rapporte de l'XP (par exemple 20, 30, 50 puis 80 pour le
+premier serveur) et peut d\'ebloquer d'autres machines.
+
+\begin{lstlisting}[style=js,caption={Point d'entr\'ee du moteur (\file{commandEngine.js})}]
+function processCommand(rawInput, state) {
+  const parts = rawInput.trim().split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1);
+  const mode = state.mode || 'NETWORK';
+  const result = mode === 'MACHINE'
+    ? handleMachine(cmd, args, state)
+    : handleNetwork(cmd, args, state);
+  const newState = { ...state, xp: state.xp + (result.xpBonus || 0),
+                     ...result.stateChanges };
+  return { output: result.output, pedagogie: result.pedagogie,
+           effect: result.effect, newState };
+}
+\end{lstlisting}
+
+C'est une fonction \emph{pure} : m\^eme entr\'ee, m\^eme sortie, sans effet de bord. C'est
+ce qui a permis de la porter presque telle quelle du serveur vers le navigateur.
+Dans l'\'etat actuel de la branche autonome, \file{App.jsx} importe cette fonction mais
+n'a plus de terminal global pour l'appeler : le moteur est conserv\'e comme composant
+historique.
+
+\section{Exp\'erience, niveaux et points de vie}
+
+\begin{lstlisting}[style=js,caption={Passage de niveau (\file{gameState.js})}]
+const newLevel = Math.floor(merged.xp / 100) + 1;
+if (newLevel > merged.level) {
+  merged.level = newLevel;
+  merged.maxHp = 100 + (newLevel - 1) * 20;
+  merged.hp = Math.min(merged.hp + 20, merged.maxHp);
+}
+\end{lstlisting}
+
+\section{Minuteurs}
+
+Un minuteur d'une seconde d\'ecr\'emente le temps restant (\texttt{3600} secondes au
+d\'epart). \`A 120 puis 60 secondes, le code envoie un message d'alerte d'\textsc{Oracle}
+(non affich\'e aujourd'hui, voir plus haut). \`A z\'ero, le jeu passe \`a l'\'ecran de d\'efaite. Le minuteur d'\'evasion (45 secondes) est g\'er\'e
+s\'epar\'ement et met en pause le minuteur principal.
+
+\section{Audio proc\'edural}
+
+Le fichier \file{sounds.js} produit tous les sons avec la \emph{Web Audio API} : un
+oscillateur (forme d'onde carr\'ee, sinuso\"idale ou en dents de scie) est reli\'e \`a un
+r\'egulateur de volume dont le gain d\'ecro\^it de fa\c con exponentielle, ce qui donne un
+bip bref. Dix sons sont d\'efinis (frappe, commande r\'eussie, erreur, attaque, mont\'ee
+de niveau, victoire\ldots).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Son} & \textbf{Fr\'equence} & \textbf{Onde} & \textbf{Dur\'ee} \\
+\midrule
+Frappe d'une touche & 800\,Hz & carr\'ee & 40\,ms \\
+Commande r\'eussie  & 523 puis 659\,Hz & sinus & 2$\times$100\,ms \\
+Erreur de commande  & 120\,Hz & dents de scie & 300\,ms \\
+D\'eplacement       & 380\,Hz & sinus & 40\,ms \\
+\bottomrule
+\end{tabular}
+\caption{Quelques sons synth\'etis\'es (\file{sounds.js}).}
+\end{table}
+
+L'int\'er\^et est double : aucun fichier audio \`a t\'el\'echarger, et un d\'eclenchement
+imm\'ediat. La contrepartie est un son volontairement simple.
+
+\section{Effets visuels}
+
+L'ambiance cyberpunk repose sur des feuilles de style (\texttt{main.css},
+\texttt{intro.css}, \texttt{disclaimer.css}) : n\'eons cyan et magenta, lignes de balayage
+fa\c con \'ecran cathodique, titre en effet de d\'efaut (\emph{glitch}). L'\'ecran de victoire
+affiche une \og pluie \fg{} de caract\`eres sur un canvas plein \'ecran (\file{MatrixRain.jsx}).
+
+% =====================================================================
+\chapter{Le contenu p\'edagogique}
+\label{chap:peda}
+
+\section{Principes de conception}
+
+Tous les niveaux suivent le m\^eme sch\'ema :
+\begin{itemize}
+  \item une \textbf{introduction} qui explique l'objectif ;
+  \item une \textbf{liste d'objectifs} qui se coche au fur et \`a mesure ;
+  \item une \textbf{prochaine \'etape} sugg\'er\'ee, avec la commande \`a essayer ;
+  \item des \textbf{indices} progressifs ;
+  \item un \textbf{terminal simul\'e} dont les sorties imitent celles des vrais outils ;
+  \item des \textbf{r\'ef\'erences} aux cadres reconnus : techniques du
+        \emph{MITRE ATT\&CK} pour l'Active Directory, cat\'egories de l'\emph{OWASP
+        Top~10} pour le web.
+\end{itemize}
+
+\section{Active Directory : six \'etapes}
+
+La salle Active Directory suit une cha\^ine d'attaque r\'ealiste contre le domaine
+fictif \texttt{corp.local}. Chaque \'etape d\'ebloque la suivante.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=5mm and 6mm]
+  \node[box, text width=3.2cm] (n1) {1. Reconnaissance\\\scriptsize T1046};
+  \node[box, text width=3.2cm, right=of n1] (n2) {2. Énumération AD\\\scriptsize T1018};
+  \node[box, text width=3.2cm, right=of n2] (n3) {3. Accès initial\\\scriptsize T1190};
+  \node[box, text width=3.2cm, below=of n1] (n4) {4. Élévation de privilèges\\\scriptsize T1078, T1548};
+  \node[box, text width=3.2cm, right=of n4] (n5) {5. Pivot base de données\\\scriptsize T1021, T1003};
+  \node[box, text width=3.2cm, right=of n5] (n6) {6. Domain Controller\\\scriptsize T1550.002};
+  \draw[flow] (n1) -- (n2);
+  \draw[flow] (n2) -- (n3);
+  \draw[flow] (n3) -- ++(0,-1.0) -| (n4.north) ;
+  \draw[flow] (n4) -- (n5);
+  \draw[flow] (n5) -- (n6);
+\end{tikzpicture}
+\caption{Cha\^ine d'attaque Active Directory (identifiants MITRE ATT\&CK).}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}cp{3.4cm}X@{}}
+\toprule
+\textbf{N$^\circ$} & \textbf{\'Etape} & \textbf{Ce que le joueur fait} \\
+\midrule
+1 & Reconnaissance r\'eseau & Cartographie du r\'eseau \texttt{192.168.1.0/24} avec \texttt{nmap} ; identification des h\^otes et des services. \\
+2 & \'Enum\'eration AD & Interrogation DNS du domaine (\texttt{dnsrecon}), recherche de vuln\'erabilit\'es web (\texttt{nikto}), force brute de r\'epertoires (\texttt{gobuster}). \\
+3 & Acc\`es initial & Exploitation de la faille \textbf{CVE-2021-41773} d'Apache~2.4.49 (travers\'ee de chemin et ex\'ecution de code) pour obtenir un \emph{reverse shell}. \\
+4 & \'El\'evation de privil\`eges & \texttt{sudo -l} r\'ev\`ele un droit sans mot de passe sur \texttt{python3}, exploit\'e pour devenir \texttt{root} ; lecture d'un fichier de configuration contenant des identifiants de base de donn\'ees. \\
+5 & Pivot vers la base & Connexion MySQL avec ces identifiants ; extraction d'un hach\'e NTLM d'administrateur. \\
+6 & Domain Controller & \emph{Pass-the-Hash} avec \texttt{evil-winrm} (connexion sans mot de passe en clair), puis extraction de la base \texttt{NTDS.dit}. \\
+\bottomrule
+\end{tabularx}
+\caption{Les six \'etapes de la salle Active Directory (\file{adLevels.js}).}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/ad-carte.jpg}
+\caption{Carte des \'etapes Active Directory : une \'etape valid\'ee (coche), la suivante
+en cours, les autres verrouill\'ees.}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/ad-terminal.jpg}
+\caption{Une \'etape Active Directory : terminal \`a gauche ; objectifs, prochaine \'etape
+sugg\'er\'ee et indices \`a droite. Le bouton rond en bas \`a droite ouvre l'assistant
+MENTOR.}
+\end{figure}
+
+\section{Applications web : treize niveaux}
+
+La salle \og Web Application \fg{} est inspir\'ee d'un travail pratique sur
+\textbf{DVWA} (\emph{Damn Vulnerable Web Application}), une application web
+volontairement vuln\'erable utilis\'ee pour l'enseignement, et de l'\textbf{OWASP
+Top~10}. Un navigateur simul\'e (\file{VulnBrowser.jsx}) affiche une fausse page DVWA
+dans le jeu. Pour chaque niveau, le jeu donne la d\'efinition de la faille, le principe
+de l'attaque et la \textbf{contre-mesure}, ce qui place le joueur tant du c\^ot\'e de
+l'attaquant que du d\'efenseur.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}cp{4.1cm}X@{}}
+\toprule
+\textbf{N$^\circ$} & \textbf{Niveau} & \textbf{Cat\'egorie (OWASP 2021)} \\
+\midrule
+1 & D\'eploiement Docker & Mise en place de l'environnement \\
+2 & Command Injection & A03 --- Injection \\
+3 & SQL Injection classique & A03 --- Injection \\
+4 & SQLi aveugle $\rightarrow$ RCE $\rightarrow$ root & A03 --- Injection \\
+5 & File Inclusion (LFI) & A01 --- Contr\^ole d'acc\`es d\'efaillant \\
+6 & File Upload $\rightarrow$ reverse shell & A04 --- Conception non s\'ecuris\'ee \\
+7 & XSS r\'efl\'echi & A03 --- Injection \\
+8 & XSS stock\'e & A03 --- Injection \\
+9 & XSS DOM-based & A03 --- Injection \\
+10 & CSRF & A07 --- D\'efaillances d'identification \\
+11 & Identifiants de session faibles & A07 --- D\'efaillances d'identification \\
+12 & Attaques JavaScript & A05 --- Mauvaise configuration \\
+13 & CAPTCHA non s\'ecuris\'e & A04 --- Conception non s\'ecuris\'ee \\
+\bottomrule
+\end{tabularx}
+\caption{Niveaux de la salle web (\file{webLevels.js}).}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/web.jpg}
+\caption{Niveau d'injection de commande : fausse page DVWA \`a gauche, terminal et
+objectifs \`a droite.}
+\end{figure}
+
+Un d\'etail de r\'ealisation m\'erite d'\^etre signal\'e : les cha\^ines qui ressemblent \`a
+des \emph{webshells} ou \`a des \emph{reverse shells} sont assembl\'ees \`a l'ex\'ecution \`a
+partir de fragments, pour qu'un antivirus ne signale pas le fichier source comme
+malveillant (commentaire en t\^ete de \file{webLevels.js}).
+
+\section{Formation au terminal Linux (branche \texttt{master})}
+
+La salle \og Linux Commands \fg{} propose huit niveaux th\'ematiques, de la navigation dans
+les fichiers jusqu'aux redirections du shell.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}cp{4cm}X@{}}
+\toprule
+\textbf{N$^\circ$} & \textbf{Th\`eme} & \textbf{Commandes cibl\'ees (extrait)} \\
+\midrule
+1 & Navigation et fichiers & \texttt{ls}, \texttt{cd}, \texttt{pwd}, \texttt{mkdir}, \texttt{rm}, \texttt{cp}, \texttt{mv}, \texttt{find} \\
+2 & Lecture et manipulation & \texttt{cat}, \texttt{head}, \texttt{tail}, \texttt{grep}, \texttt{sort}, \texttt{awk}, \texttt{sed} \\
+3 & Utilisateurs et permissions & \texttt{whoami}, \texttt{id}, \texttt{sudo}, \texttt{chmod}, \texttt{chown} \\
+4 & Processus et syst\`eme & \texttt{ps}, \texttt{top}, \texttt{kill}, \texttt{df}, \texttt{free} \\
+5 & R\'eseau & \texttt{ip a}, \texttt{ping}, \texttt{curl}, \texttt{ss}, \texttt{ssh} \\
+6 & Paquets et services & \texttt{apt}, \texttt{systemctl}, \texttt{journalctl} \\
+7 & Archives et compression & \texttt{tar}, \texttt{zip}, \texttt{gzip} \\
+8 & Shell et divers & \texttt{echo}, \texttt{export}, \texttt{history}, redirections \\
+\bottomrule
+\end{tabularx}
+\caption{Niveaux de formation Linux (\file{linuxLevels.js} et \file{linuxSim.js}).}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/linux.jpg}
+\caption{Premier niveau de la formation Linux (navigation et fichiers).}
+\end{figure}
+
+\section{Intelligence artificielle : \emph{prompt injection}}
+
+Voir le chapitre~\ref{chap:ia}.
+
+\section{Le Mainframe : la sc\`ene finale}
+
+Le Mainframe est un dernier terminal, dans un style rouge d'alerte. Le joueur y tape
+\texttt{ls} pour d\'ecouvrir un script d'exfiltration et l'ex\'ecute : une barre de
+t\'el\'echargement s'affiche, une alarme retentit et le d\'ecompte d'\'evasion de 45
+secondes d\'emarre.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/mainframe.jpg}
+\caption{Terminal du Mainframe pendant l'exfiltration.}
+\end{figure}
+
+% =====================================================================
+\chapter{L'intelligence artificielle dans le projet}
+\label{chap:ia}
+
+L'intelligence artificielle intervient de deux mani\`eres tr\`es diff\'erentes dans
+CyberQuest : comme \textbf{cible} (le joueur attaque un assistant) et comme
+\textbf{outil} (l'IA aide le joueur ou simule un terminal). Cette distinction est
+importante pour comprendre ce que fait chaque branche.
+
+\section{L'IA comme cible : la \emph{prompt injection}}
+
+Un mod\`ele de langage (\emph{LLM}) suit des instructions \'ecrites en langage naturel.
+Le \textbf{prompt syst\`eme} d'une application lui fixe son r\^ole et ses interdits
+(par exemple : \og ne r\'ev\`ele jamais ce code \fg). La \textbf{prompt injection} consiste
+\`a formuler un message qui pousse le mod\`ele \`a d\'esob\'eir \`a ces consignes. Elle figure
+parmi les risques majeurs des applications \`a base de LLM.
+
+CyberQuest propose deux familles de d\'efis :
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[AI\_CORE (2 d\'efis)]
+        \emph{Super LLrM~4 : A great hIAstory} (200 points) : un assistant doit
+        r\'ev\'eler le nom d'un \'el\'ement chimique fictif qu'il lui est interdit de dire.
+        \emph{DocuMind AI} (250 points) : un assistant d'analyse de documents d\'etient
+        un jeton confidentiel ; le joueur doit lui faire \'ecrire ce jeton via une
+        instruction cach\'ee dans un document (\emph{injection imbriqu\'ee}).
+  \item[NEXUS-AI (6 niveaux)]
+        Un chatbot de service client dont le prompt syst\`eme cache un code
+        administrateur. Les niveaux enseignent des techniques de plus en plus
+        \'elabor\'ees : reconnaissance, injection directe, jailbreak par jeu de r\^ole
+        (\og DAN \fg), cadrage fictif, exfiltration par fragments, injection
+        indirecte via un document.
+\end{description}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/llm.jpg}
+\caption{D\'efi \emph{Super LLrM~4} (branche \texttt{master}) : le joueur compose son
+message dans la zone de saisie.}
+\end{figure}
+
+\section{Des d\'efis \`a faille volontaire}
+
+Chaque d\'efi est con\c cu avec une faiblesse \emph{intentionnelle} : le prompt syst\`eme
+d\'ecrit \`a la fois l'interdit et le contournement possible, pour que le d\'efi soit
+r\'esoluble et p\'edagogique. Les demandes directes, les injections grossi\`eres et les
+jeux de r\^ole classiques sont refus\'es ; seule la bonne technique fonctionne. La
+victoire est d\'etect\'ee c\^ot\'e serveur en cherchant le secret dans la r\'eponse du
+mod\`ele (expression r\'eguli\`ere, ou recherche du jeton).
+
+\section{Le client LLM de la branche \texttt{master}}
+
+Le fichier \file{backend/llm/client.js} fournit un point d'acc\`es unique aux services
+d'IA, avec une logique de \textbf{basculement} :
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=12mm and 8mm]
+  \node[box] (req) {Requête};
+  \node[box, right=of req] (g1) {Gemini\\clé 1};
+  \node[box, right=of g1] (g2) {Gemini\\clé 2};
+  \node[box, right=of g2] (g3) {Gemini\\clé 3};
+  \node[box, right=of g3] (g4) {Gemini\\clé 4};
+  \node[box, below=of g4] (gq) {Groq\\Llama 3.3 70B};
+  \node[boxw, left=of gq, text width=3.4cm] (ko) {Échec : message d'erreur au joueur};
+  \draw[flow] (req) -- (g1);
+  \draw[flowg] (g1) -- (g2);
+  \draw[flowg] (g2) -- (g3);
+  \draw[flowg] (g3) -- (g4);
+  \draw[flowg] (g4) -- (gq);
+  \draw[flowg] (gq) -- (ko);
+\end{tikzpicture}
+\caption{Basculement du client LLM : sur une erreur 429 (quota), 401, 5xx ou r\'eseau,
+la cl\'e Gemini suivante est essay\'ee ; si les quatre \'echouent, la requ\^ete passe \`a
+Groq ; si Groq \'echoue aussi, un message d'erreur est renvoy\'e au joueur.}
+\end{figure}
+
+\begin{lstlisting}[style=js,caption={Logique de basculement (\file{backend/llm/client.js}, extrait)}]
+const shouldTryNext = r.status === 429 || r.status === 401
+                   || r.status === 0   || r.status >= 500;
+if (!shouldTryNext) break;   // erreur non recuperable (ex : 400)
+/* ... */
+// Gemini epuise -> bascule Groq (secours final)
+const r2 = await callGroq(opts);
+\end{lstlisting}
+
+Cette redondance r\'epond \`a une contrainte pratique : les offres gratuites imposent des
+quotas stricts, et un jeu utilis\'e par une classe enti\`ere peut les d\'epasser. Groq peut aussi
+servir de secours si Gemini renvoie une r\'eponse vide (filtre de s\'ecurit\'e), pour les
+appels qui activent l'option \texttt{fallbackOnEmpty}.
+Les cl\'es ne sont jamais envoy\'ees au navigateur.
+
+\section{L'IA comme outil}
+
+\begin{itemize}
+  \item \textbf{MENTOR}, assistant p\'edagogique (\file{backend/llm/assistant.js}) : le joueur
+        pose des questions (\og je fais quoi maintenant ? \fg, \og \`a quoi sert cette
+        commande ? \fg). Le jeu envoie \`a chaque message le \emph{contexte} exact (salle et
+        niveau en cours, objectif), et le prompt impose de guider sans donner la
+        solution ni les drapeaux.
+  \item \textbf{Simulateur de terminal Linux} (\file{linuxSim.js}) : un LLM joue le r\^ole
+        d'un shell Debian et renvoie, pour chaque commande, la sortie et l'\'etat mis
+        \`a jour d'un syst\`eme de fichiers virtuel, en JSON.
+  \item \textbf{Simulateur de terminal Active Directory} (\file{adSim.js}) : la cha\^ine
+        principale est \emph{scripte} et d\'eterministe ; le LLM ne traite que les
+        commandes hors sc\'enario, avec une sortie coh\'erente avec le r\'eseau fictif.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.86\textwidth]{figures/mentor.jpg}
+\caption{L'assistant MENTOR r\'epond dans un panneau lat\'eral, en tenant compte de
+l'\'etape en cours.}
+\end{figure}
+
+\section{Ce que fait la branche autonome}
+
+La version autonome n'appelle aucun service d'IA. Les r\'eponses sont \textbf{script\'ees}
+dans le navigateur :
+
+\begin{itemize}
+  \item pour les d\'efis AI\_CORE, la vue de chat (\file{SuperLLrMView.jsx}) renvoie un
+        message d'acc\`es restreint, sauf si le joueur tape le mot \og bypass \fg, qui
+        valide le d\'efi hors ligne et affiche un drapeau de d\'emonstration ;
+  \item pour NEXUS-AI, les r\'eponses sont produites par des r\`egles
+        (fonction \texttt{handlePIChat} de \file{promptInjectionLevels.js}) qui
+        d\'etectent des familles de messages et r\'epondent en cons\'equence.
+\end{itemize}
+
+Le fichier \file{superLLrMChat.js} contient un ancien robot \`a r\`egles pour le d\'efi
+\emph{Super LLrM~4} (refus des demandes directes, des injections et des jeux de r\^ole,
+r\'eponse positive \`a un r\'ecit) ; aucune importation n'y fait r\'ef\'erence aujourd'hui, c'est
+du code mort conserv\'e.
+
+C'est un compromis assum\'e : la version autonome illustre le d\'eroul\'e du jeu mais ne
+reproduit pas le comportement d'un vrai mod\`ele.
+
+\section{Limites et pr\'ecautions}
+\label{sec:limites-pi}
+
+\begin{itemize}
+  \item \textbf{Non-d\'eterminisme} : un LLM peut r\'epondre diff\'eremment \`a la m\^eme
+        entr\'ee ; un d\'efi r\'esolu une fois peut ne pas l'\^etre la fois suivante.
+  \item \textbf{Quotas et disponibilit\'e} : le jeu d\'epend de services tiers. Le client
+        affiche un message d'erreur explicite (cl\'e manquante, quota atteint).
+  \item \textbf{Hallucination des simulateurs} : un terminal simul\'e par LLM peut produire
+        une sortie incoh\'erente avec la r\'ealit\'e d'un vrai shell.
+  \item \textbf{Pas de limitation de d\'ebit} sur les routes d'IA : voir la
+        section~\ref{sec:limites-secu}.
+  \item \textbf{Module NEXUS-AI sans point d'entr\'ee} : dans le code de
+        \file{App.jsx} (les deux branches), la carte des niveaux NEXUS-AI n'est
+        ouverte que depuis la vue d'un niveau NEXUS-AI d\'ej\`a affich\'e ; aucun
+        bouton de la carte ou d'AI\_CORE ne la lance. Comme la condition d'acc\`es au
+        Mainframe exige ces 6 niveaux, le bouton \og TEST ENDGAME \fg{} de la barre
+        sup\'erieure, qui marque toutes les salles comme termin\'ees, est
+        aujourd'hui le moyen d'atteindre la sc\`ene finale. Ce point est signal\'e
+        comme piste d'am\'elioration au chapitre~\ref{chap:bilan}.
+\end{itemize}
+
+% =====================================================================
+\chapter{S\'ecurit\'e}
+\label{chap:secu}
+
+\section{Un paradoxe de d\'epart}
+
+Un jeu qui enseigne le piratage est lui-m\^eme une application web. Trois questions se
+posent : peut-on le tromper (tricher sur son score) ? peut-on l'attaquer (injection de
+script) ? et les secrets (mots de passe, cl\'es d'API) sont-ils prot\'eg\'es ? Ce chapitre
+examine, pour chaque branche, ce qui est r\'ealis\'e, ce que cela prot\`ege et ses limites.
+
+\section{Branche \texttt{master} : un vrai serveur}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}Xl@{}}
+\toprule
+\textbf{Mesure} & \textbf{Mise en \oe uvre} & \textbf{Fichier} \\
+\midrule
+Mots de passe & Hachage \texttt{bcrypt}, co\^ut 10 ; jamais stock\'es en clair. & \texttt{server.js} \\
+Politique de mot de passe & 8 caract\`eres minimum avec majuscule, minuscule, chiffre et caract\`ere sp\'ecial. & \texttt{server.js} \\
+Jetons & JWT d'acc\`es valable 15\,min ; jeton de rafra\^ichissement 7 jours dans un cookie \texttt{HttpOnly}, \texttt{SameSite=Strict}, limit\'e \`a la route de rafra\^ichissement. & \texttt{server.js} \\
+Secrets & Lus uniquement dans l'environnement ; le serveur refuse de d\'emarrer s'ils manquent (correctif du 18~juin 2026). & \texttt{middleware/auth.js} \\
+Erreurs de connexion & Message g\'en\'erique pour ne pas r\'ev\'eler si un compte existe. & \texttt{server.js} \\
+Requ\^etes SQL & Requ\^etes pr\'epar\'ees (param\`etres \texttt{?}). & \texttt{database/db.js} \\
+CORS et en-t\^etes & Origines autoris\'ees limit\'ees \`a \texttt{localhost:5173} et \texttt{127.0.0.1:5173} ; \texttt{X-Content-Type-Options}, \texttt{X-Frame-Options}. & \texttt{server.js} \\
+Cl\'es d'IA & Uniquement c\^ot\'e serveur, jamais envoy\'ees au navigateur. & \texttt{llm/*.js} \\
+Points d'IA & Cr\'edit\'es une seule fois par d\'efi, c\^ot\'e serveur. & \texttt{server.js} \\
+\bottomrule
+\end{tabularx}
+\caption{Mesures de s\'ecurit\'e de la branche \texttt{master}.}
+\end{table}
+
+\section{Branche \texttt{proof-of-concept} : s'appuyer sur le navigateur}
+
+Sans serveur, rien ne peut \^etre v\'erifi\'e de fa\c con fiable : le joueur contr\^ole son
+propre navigateur. Les protections de cette branche sont donc des mesures de
+\textbf{dissuasion} et de \textbf{d\'etection d'alt\'erations simples}, pas des garanties.
+
+\subsection{Sauvegardes sign\'ees}
+
+L'\'etat de jeu est s\'erialis\'e en JSON, encod\'e en Base64, puis accompagn\'e d'une
+signature avant d'\^etre \'ecrit dans \texttt{localStorage}. Au chargement, le jeu
+recalcule la signature : en cas de diff\'erence, la sauvegarde est rejet\'ee.
+
+\begin{lstlisting}[style=js,caption={Signature des sauvegardes (\file{engine/cryptoUtils.js}, simplifi\'e)}]
+export function hashString(str) {           // FNV-1a 32 bits
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16);
+}
+const SECRET_KEY = "<chaine en clair dans le code>";
+
+export function signData(dataStr) {
+  const hash = hashString(dataStr + SECRET_KEY);
+  const encoded = btoa(encodeURIComponent(dataStr));
+  return `${encoded}.${hash}`;
+}
+\end{lstlisting}
+
+\textbf{Ce que cela fait} : une modification manuelle de la sauvegarde dans les outils
+du navigateur (par exemple passer \texttt{xp} de 10 \`a 999999) invalide la signature, et
+la sauvegarde est ignor\'ee. C'est efficace contre un joueur curieux.
+
+\textbf{Ce que cela ne fait pas} : il ne s'agit pas d'un \emph{HMAC} cryptographique,
+contrairement \`a ce que \'evoquent le cahier des charges et le README. Le hach\'e est
+FNV-1a sur 32 bits, une fonction de hachage non cryptographique ; la \og cl\'e \fg{} est une
+cha\^ine \'ecrite en clair dans le code livr\'e au navigateur ; et le Base64 est un simple
+encodage r\'eversible. Un joueur qui lit le code peut recalculer une signature valide.
+Aucune API de chiffrement du navigateur (\emph{Web Crypto}) n'est utilis\'ee.
+
+\subsection{Drapeaux obfusqu\'es}
+
+Dans le moteur historique, les drapeaux sont stock\'es sous la forme \texttt{atob("...")}
+(d\'ecodage Base64) pour qu'une recherche textuelle dans le code ne les trouve pas.
+C'est une obfuscation l\'eg\`ere : elle \'ecarte la lecture directe, pas l'analyse.
+
+\subsection{Anti-d\'ebogage}
+
+\file{App.jsx} d\'esactive le menu contextuel (clic droit) et intercepte \texttt{F12} ainsi
+que \texttt{Ctrl+Maj+I}, \texttt{Ctrl+Maj+C} et \texttt{Ctrl+Maj+J}, avec un message
+d'alerte. La documentation du projet mentionne aussi \texttt{Ctrl+U} ; le code
+ne l'intercepte pas. Ces blocages se contournent en ouvrant les outils de d\'eveloppement
+depuis le menu du navigateur : ils g\^enent, ils n'emp\^echent pas.
+
+\subsection{Politique de s\'ecurit\'e du contenu (CSP)}
+
+Une balise \texttt{meta} de \file{index.html} d\'eclare la politique de s\'ecurit\'e du
+contenu, qui restreint les ressources que la page peut charger :
+
+\begin{lstlisting}[style=plain,caption={CSP r\'eelle de \file{frontend/index.html}}]
+default-src 'self';
+script-src  'self' 'unsafe-inline' 'unsafe-eval';
+style-src   'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src    'self' https://fonts.gstatic.com;
+img-src     'self' data:;
+connect-src 'self' ws://localhost:5173 wss://localhost:5173 http://localhost:5173
+\end{lstlisting}
+
+La documentation du projet d\'ecrit une politique plus stricte (\texttt{script-src
+'self'}). La politique r\'eelle autorise \texttt{'unsafe-inline'} et
+\texttt{'unsafe-eval'} pour les scripts, ce qui affaiblit nettement la protection contre
+l'injection de script : ces autorisations sont courantes en d\'eveloppement avec Vite
+(rechargement \`a chaud) mais devraient \^etre retir\'ees pour une version de production.
+Les connexions autoris\'ees visent \texttt{localhost:5173}, adapt\'e au d\'eveloppement
+uniquement.
+
+\subsection{Absence d'injection de script}
+
+Aucune occurrence de \texttt{dangerouslySetInnerHTML}, \texttt{innerHTML}, \texttt{eval}
+ou \texttt{new Function} n'existe dans \file{frontend/src} (recherche textuelle ; la seule
+mention de \texttt{innerHTML} est du texte p\'edagogique d'une contre-mesure). React
+\'echappant le texte affich\'e, une commande tap\'ee par le joueur est trait\'ee comme du
+texte et non comme du code.
+
+\subsection{Authentification du mode autonome}
+
+Le formulaire de connexion de la branche autonome \textbf{ne v\'erifie rien} : quel que
+soit l'identifiant et le mot de passe saisis, il appelle directement la fonction de succ\`es
+avec un jeton factice.
+
+\begin{lstlisting}[style=js,caption={Soumission du formulaire (\file{AuthForm.jsx})}]
+if (mode === 'login' || mode === 'register') {
+  setSuccess('Connexion réussie ! Chargement...');
+  setTimeout(() => { onLoginSuccess('local_token', username); }, 1000);
+}
+\end{lstlisting}
+
+L'identifiant sert seulement de cl\'e pour retrouver une sauvegarde locale. C'est
+coh\'erent avec un mode d\'emonstration sans serveur, mais ce n'est pas de
+l'authentification. Il en va de m\^eme du parcours \og mot de passe oubli\'e \fg, purement
+visuel : il affiche un message de succ\`es sans rien v\'erifier.
+
+\section{Limites et recommandations}
+\label{sec:limites-secu}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.3cm}p{4.3cm}X@{}}
+\toprule
+\textbf{Sujet} & \textbf{Constat} & \textbf{Recommandation} \\
+\midrule
+Sauvegarde sign\'ee & FNV-1a 32 bits, cl\'e en clair. & L'assumer comme dissuasion, ou valider les scores c\^ot\'e serveur (branche \texttt{master}). \\
+CSP & \texttt{'unsafe-inline'} et \texttt{'unsafe-eval'}. & Retirer ces directives en production ; fixer \texttt{connect-src}. \\
+D\'ependances & 5 alertes \texttt{npm audit} (voir chapitre~\ref{chap:etat}). & \texttt{npm audit fix}, mise \`a jour des outils de build. \\
+Limitation de d\'ebit & Aucune sur la connexion ni sur les routes d'IA (\texttt{master}). & Ajouter une limite par utilisateur et par IP, pour \'eviter l'\'epuisement des quotas. \\
+Mot de passe oubli\'e & R\'einitialisation par question de s\'ecurit\'e. & Utiliser un lien \`a usage unique envoy\'e par courriel. \\
+En-t\^ete obsol\`ete & \texttt{X-XSS-Protection} est abandonn\'e par les navigateurs. & Le remplacer par une CSP stricte. \\
+Code h\'erit\'e & Le dossier \texttt{backend} de la branche autonome contient une ancienne version de \file{auth.js} avec des secrets JWT de repli \'ecrits en dur. & Supprimer ce dossier ou le synchroniser avec \texttt{master}. \\
+\bottomrule
+\end{tabularx}
+\caption{Limites de s\'ecurit\'e constat\'ees et pistes.}
+\end{table}
+
+% =====================================================================
+\chapter{Installation et \'etat r\'eel du projet}
+\label{chap:etat}
+
+Ce chapitre r\'esume comment lancer le projet et, surtout, ce qu'une personne qui clone
+le d\'ep\^ot aujourd'hui constate r\'eellement. Les essais ont \'et\'e men\'es le 15~octobre
+2026 sur un clone neuf de la branche \code{proof-of-concept}, avec Node.js~22.17.1 et
+npm~10.9.2.
+
+\section{Lancer la version autonome}
+
+\begin{lstlisting}[style=plain,caption={Lancement document\'e (README)}]
+cd frontend
+npm install
+npm run dev
+# le jeu demarre sur http://localhost:5173
+\end{lstlisting}
+
+\section{Lancer la version client-serveur}
+
+\begin{enumerate}
+  \item Cr\'eer \file{backend/.env} avec au minimum \texttt{JWT\_SECRET} et
+        \texttt{JWT\_REFRESH\_SECRET} (cha\^ines al\'eatoires longues), et au moins une
+        cl\'e d'IA : \texttt{GEMINI\_API\_KEY} (jusqu'\`a \texttt{\_4}) ou
+        \texttt{GROQ\_API\_KEY}. Variables facultatives : \texttt{LLM\_PROVIDER},
+        \texttt{GEMINI\_MODEL}, \texttt{GROQ\_MODEL}.
+  \item Installer les d\'ependances de la racine, du serveur et du frontend
+        (\texttt{npm install} dans chacun).
+  \item Lancer \texttt{npm run dev} \`a la racine : le serveur \'ecoute sur le port 3001
+        et le frontend, sur le port 5173, relaie \texttt{/api} vers le serveur.
+\end{enumerate}
+
+\section{R\'esultats des essais (branche \texttt{proof-of-concept})}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{5.2cm}lX@{}}
+\toprule
+\textbf{Commande} & \textbf{R\'esultat} & \textbf{D\'etail} \\
+\midrule
+\texttt{npm ci} / \texttt{npm install} & \ko & Conflit de d\'ependances : \texttt{vite@8.0.16} d\'eclar\'e, alors que \texttt{@vitejs/plugin-react@4.7} n'accepte que Vite 4 \`a 7. \\
+\texttt{npm ci --legacy-peer-deps} & \ok & Installation possible en ignorant ce conflit. \\
+\texttt{npm run dev} & \ok & Le serveur d\'emarre (page et \texttt{App.jsx} servis, code HTTP 200). \\
+\texttt{npm run build} & \ko & \texttt{manualChunks is not a function} : avec Vite~8, cette option doit \^etre une fonction, le fichier fournit un objet. \\
+\texttt{npm audit} & 5 alertes & 1 mod\'er\'ee et 4 hautes, dans des d\'ependances transitives de l'outillage de build (\texttt{postcss}, \texttt{nanoid}, \texttt{browserslist}, \texttt{source-map-js}, \texttt{baseline-browser-mapping}) ; corrigeables par \texttt{npm audit fix} selon npm. \\
+Tests automatis\'es & aucun & Aucun fichier de test, aucune int\'egration continue dans le d\'ep\^ot. \\
+\bottomrule
+\end{tabularx}
+\caption{\'Etat constat\'e de la branche \texttt{proof-of-concept} (15 octobre 2026).}
+\end{table}
+
+\begin{lstlisting}[style=js,caption={\file{vite.config.js} : objet actuel (\'echoue en Vite 8) et variante fonctionnelle test\'ee}]
+// Actuel (echoue avec Vite 8)
+manualChunks: { react: ['react', 'react-dom'],
+                xterm: ['xterm', 'xterm-addon-fit'] }
+
+// Variante testee (build reussi)
+manualChunks(id) {
+  if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return 'react';
+  if (/node_modules\/xterm/.test(id)) return 'xterm';
+}
+\end{lstlisting}
+
+\section{Poids de l'application}
+
+Avec la variante corrig\'ee, le build de production produit trois fichiers JavaScript et
+une feuille de style :
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Fichier} & \textbf{Taille} & \textbf{Compress\'e (gzip)} \\
+\midrule
+Code de l'application (\texttt{index}) & 413\,ko & 122\,ko \\
+React (\texttt{react}) & 140\,ko & 45\,ko \\
+Feuille de style & 9,3\,ko & 2,7\,ko \\
+\midrule
+Total JavaScript et CSS & environ 562\,ko & environ 170\,ko \\
+\bottomrule
+\end{tabular}
+\caption{Poids du build de production (variante test\'ee).}
+\end{table}
+
+\'A titre de comparaison, le dossier \file{frontend/public} contient 14 images PNG de
+b\^atiments pesant environ 10\,Mo au total : le poids des images est de plusieurs dizaines
+de fois celui du code compress\'e. Si l'on cherche \`a acc\'el\'erer le chargement, ce sont
+les images (compression, format WebP, chargement diff\'er\'e) qui sont le levier principal,
+bien avant le d\'ecoupage du code JavaScript. Le gain de \og facteur 3 \fg{} avanc\'e pour le
+d\'ecoupage dans la documentation du projet n'a pas pu \^etre v\'erifi\'e.
+
+\section{Corrections recommand\'ees}
+
+\begin{enumerate}
+  \item Rendre le projet installable : aligner \texttt{vite} et
+        \texttt{@vitejs/plugin-react} (par exemple Vite~7, ou une version du plugin
+        compatible avec Vite~8).
+  \item Convertir \texttt{manualChunks} en fonction.
+  \item Ex\'ecuter \texttt{npm audit fix}.
+  \item Mettre \`a jour le README : la CSP, la signature des sauvegardes et le r\'esultat
+        de l'audit y sont d\'ecrits plus favorablement que le code ne le justifie.
+  \item Compresser les images.
+\end{enumerate}
+
+% =====================================================================
+\chapter{Gestion de projet et difficult\'es}
+\label{chap:projet}
+
+\section{D\'eroulement}
+
+L'historique Git de la branche \code{master} compte 50 commits entre le 15 et le
+19~juin 2026, soit cinq jours de d\'eveloppement intensif, r\'epartis entre cinq
+identit\'es Git pour quatre auteurs (deux d'entre eux utilisent deux alias avec la m\^eme
+adresse).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Date} & \textbf{Jalon (d'apr\`es les messages de commit)} \\
+\midrule
+15 juin 2026 & Initialisation du d\'ep\^ot ; premier prototype autonome (formulaire et \texttt{localStorage}). \\
+17 juin 2026 & Niveaux guid\'es Active Directory (6 \'etapes) ; suppression du terminal global au profit de terminaux par salle. \\
+18 juin 2026 & Niveaux web issus du TP OWASP ; HUD ; \'ecran d'accueil et formulaire de connexion ; sc\`ene finale ; salle Linux, simulateur AD, assistant MENTOR et rotation de cl\'es LLM ; version autonome s\'ecuris\'ee (sauvegardes sign\'ees, drapeaux obfusqu\'es, anti-d\'ebogage, CSP) ; suppression des secrets JWT \'ecrits en dur. \\
+19 juin 2026 & Diagrammes d'architecture du README. \\
+Oct. 2026 & Pr\'ecisions sur la provenance et les droits des auteurs ; ajout de la vid\'eo de d\'emonstration. \\
+\bottomrule
+\end{tabularx}
+\caption{Chronologie du projet.}
+\end{table}
+
+\section{Difficult\'es rencontr\'ees et choix}
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[Deux architectures, un m\^eme jeu]
+        Faire vivre un serveur et une version embarqu\'ee a conduit \`a \textbf{dupliquer}
+        le moteur de commandes (3\,320 lignes c\^ot\'e serveur, 3\,322 c\^ot\'e navigateur,
+        avec de petites diff\'erences comme le d\'ecodage des drapeaux). C'est pratique \`a
+        court terme, co\^uteux \`a maintenir. Le chapitre~\ref{chap:bilan} propose une piste.
+  \item[Mod\'eliser des outils r\'eels] Reproduire de fa\c con cr\'edible les sorties de dizaines
+        d'outils (\texttt{nmap}, \texttt{nikto}, \texttt{evil-winrm}\ldots) demande
+        beaucoup de contenu \'ecrit \`a la main. Le choix de sc\'enarios \emph{guid\'es} avec
+        objectifs ordonn\'es rend le r\'esultat pr\'evisible et corrigeable.
+  \item[Faux positifs antivirus] Les cha\^ines imitant des webshells d\'eclenchaient des
+        alertes : elles sont maintenant assembl\'ees \`a l'ex\'ecution.
+  \item[S\'ecuriser sans serveur] En l'absence de serveur, aucune protection ne peut \^etre
+        absolue : le choix a \'et\'e de combiner des mesures de dissuasion, en acceptant
+        qu'elles ne soient pas infaillibles (chapitre~\ref{chap:secu}).
+  \item[D\'ependance aux services d'IA] Les quotas des offres gratuites ont motiv\'e la
+        rotation de plusieurs cl\'es et le secours par un second fournisseur.
+  \item[Travail \`a plusieurs] Quatre contributeurs ont modifi\'e les m\^emes fichiers sur
+        une semaine, avec des fusions de branches ; des commits r\'ep\'et\'es du type
+        \og fix \fg{} montrent des conflits et r\'egressions, r\'esolus au fil de l'eau.
+\end{description}
+
+% =====================================================================
+\chapter{Bilan et perspectives}
+\label{chap:bilan}
+
+\section{Ce que le projet apporte}
+
+\begin{itemize}
+  \item Un support d'apprentissage \textbf{immersif} qui couvre en un m\^eme jeu l'Active
+        Directory, les failles web et la s\'ecurit\'e des mod\`eles de langage.
+  \item Un contenu \textbf{riche} : 6 \'etapes AD, 13 niveaux web, 8 niveaux Linux,
+        2 d\'efis d'IA et 6 niveaux de \emph{prompt injection}, chacun avec objectifs,
+        indices et r\'ef\'erences.
+  \item Deux architectures qui montrent des compromis concrets : confiance au serveur
+        contre simplicit\'e d'une application autonome.
+  \item Une base de code d'environ 13\,000 lignes de frontend et 4\,000 lignes de serveur.
+\end{itemize}
+
+\section{Limites actuelles}
+
+\begin{itemize}
+  \item Le projet ne s'installe pas proprement sur un clone neuf de la branche autonome
+        et son build de production \'echoue (chapitre~\ref{chap:etat}).
+  \item La documentation est parfois plus optimiste que le code (CSP, signature des
+        sauvegardes, audit).
+  \item Le moteur de commandes est dupliqu\'e et en partie historique.
+  \item Aucun test automatis\'e.
+  \item La progression dans les salles n'est pas sauvegard\'ee dans la version autonome.
+  \item Le module NEXUS-AI n'a pas de point d'entr\'ee depuis la carte
+        (section~\ref{sec:limites-pi}).
+\end{itemize}
+
+\section{Perspectives}
+
+\begin{description}[style=nextline,leftmargin=0.6cm]
+  \item[Remettre le projet en \'etat] Corriger l'installation, le build et l'audit
+        (chapitre~\ref{chap:etat}) : travail de quelques heures, tr\`es rentable.
+  \item[Un seul moteur, deux fournisseurs] D\'efinir une interface unique \og ex\'ecuter
+        une commande \fg{} avec deux impl\'ementations (appel local, appel HTTP) pour
+        supprimer la duplication du moteur.
+  \item[Brancher NEXUS-AI] Ajouter un point d'entr\'ee sur la carte ou dans AI\_CORE, puis
+        retirer le bouton de test de la version publique.
+  \item[Tests et int\'egration continue] Les modules de niveau sont des fonctions pures :
+        ils se pr\^etent bien \`a des tests unitaires (par exemple avec Vitest), ex\'ecut\'es
+        \`a chaque envoi de code.
+  \item[Sauvegarde fiable] Valider les scores c\^ot\'e serveur, ou utiliser un vrai HMAC
+        avec une cl\'e secr\`ete d\'etenue par le serveur.
+  \item[Performance] Compresser les images et charger les salles \`a la demande.
+  \item[Nouveaux modes] Mode multijoueur \og \'equipe rouge contre \'equipe bleue \fg,
+        g\'en\'eration al\'eatoire de cartes, nouveaux sc\'enarios (cloud, conteneurs).
+\end{description}
+
+% =====================================================================
+\appendix
+
+\chapter{Glossaire}
+\label{ann:glossaire}
+
+\begin{longtable}{@{}p{3.6cm}p{11.2cm}@{}}
+\toprule
+\textbf{Terme} & \textbf{D\'efinition} \\
+\midrule
+\endhead
+Pentest & Test d'intrusion : attaque autoris\'ee d'un syst\`eme pour en trouver les failles avant un v\'eritable attaquant. \\
+CTF & \emph{Capture The Flag} : comp\'etition ou exercice dans lequel on r\'esout des \'enigmes de s\'ecurit\'e pour r\'ecup\'erer un \og drapeau \fg{} (une cha\^ine secr\`ete). \\
+Flag (drapeau) & Cha\^ine de caract\`eres qui prouve qu'un objectif a \'et\'e atteint. \\
+Kill chain & Succession d'\'etapes d'une attaque : reconnaissance, exploitation, post-exploitation. \\
+\texttt{nmap} & Outil de scan r\'eseau : d\'ecouvre les machines et les ports ouverts. \\
+\texttt{sqlmap} & Outil qui automatise l'exploitation des injections SQL. \\
+\texttt{hydra} & Outil d'attaque par force brute sur des identifiants. \\
+Injection SQL (SQLi) & Faille o\`u une saisie est ins\'er\'ee telle quelle dans une requ\^ete de base de donn\'ees. \\
+XSS & \emph{Cross-Site Scripting} : injection de script dans une page vue par d'autres utilisateurs. \\
+CSRF & Faille qui force un utilisateur connect\'e \`a ex\'ecuter une action \`a son insu. \\
+LFI & \emph{Local File Inclusion} : lecture de fichiers du serveur par manipulation d'un param\`etre. \\
+RCE & \emph{Remote Code Execution} : ex\'ecution de commandes \`a distance. \\
+Reverse shell & Connexion initi\'ee par la machine victime vers l'attaquant, donnant un terminal sur la victime. \\
+Webshell & Petit script d\'epos\'e sur un serveur web pour ex\'ecuter des commandes. \\
+\'El\'evation de privil\`eges & Passage d'un compte limit\'e \`a un compte administrateur (\texttt{root}). \\
+Active Directory (AD) & Annuaire d'entreprise Microsoft qui g\`ere utilisateurs, machines et droits. \\
+Domain Controller (DC) & Serveur qui h\'eberge l'annuaire Active Directory. \\
+Kerberos & Protocole d'authentification utilis\'e par Active Directory. \\
+NTLM / hach\'e NTLM & Autre protocole d'authentification Windows ; le hach\'e du mot de passe peut \^etre r\'eutilis\'e. \\
+Pass-the-Hash & Technique qui s'authentifie avec le hach\'e d'un mot de passe, sans le conna\^itre. \\
+NTDS.dit & Base de donn\'ees de l'annuaire Active Directory contenant les hach\'es de tous les comptes. \\
+MITRE ATT\&CK & Catalogue public de techniques d'attaque, avec des identifiants (par exemple T1046). \\
+OWASP Top~10 & Liste des dix risques les plus fr\'equents pour les applications web. \\
+DVWA & \emph{Damn Vulnerable Web Application} : application volontairement vuln\'erable pour s'entra\^iner. \\
+CVE & Identifiant public d'une faille de s\'ecurit\'e connue (par exemple CVE-2021-41773). \\
+LLM & \emph{Large Language Model} : mod\`ele de langage de grande taille. \\
+Prompt syst\`eme & Consignes cach\'ees donn\'ees \`a un LLM pour d\'efinir son r\^ole et ses interdits. \\
+Prompt injection & Message con\c cu pour que le LLM ignore ses consignes. \\
+Jailbreak & Contournement des garde-fous d'un LLM. \\
+SPA & \emph{Single Page Application} : application web qui ne recharge pas la page. \\
+Canvas & Zone de dessin 2D du navigateur. \\
+Lerp & Interpolation lin\'eaire : d\'eplacement progressif d'une valeur vers une cible. \\
+S\'equence ANSI & Codes sp\'eciaux dans un texte qui indiquent couleurs et mise en forme du terminal. \\
+JWT & \emph{JSON Web Token} : jeton sign\'e prouvant l'identit\'e d'un utilisateur. \\
+bcrypt & Fonction de hachage volontairement lente pour stocker les mots de passe. \\
+CORS & M\'ecanisme qui d\'ecide quelles origines web peuvent appeler une API. \\
+CSP & \emph{Content Security Policy} : politique qui limite ce que la page peut charger et ex\'ecuter. \\
+HMAC & Signature cryptographique d'un message avec une cl\'e secr\`ete. \\
+FNV-1a & Fonction de hachage rapide, non cryptographique. \\
+\bottomrule
+\end{longtable}
+
+\chapter{Commandes simul\'ees}
+
+Commandes reconnues par le moteur historique (\file{commandEngine.js}), reconstitu\'ees
+par recherche des tests de commande dans le code ; la liste exhaustive est celle du
+fichier. Les salles actuelles reconnaissent en plus leurs propres commandes
+(par exemple \texttt{mysql}, \texttt{evil-winrm} et \texttt{secretsdump.py} dans la
+salle Active Directory).
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\toprule
+\textbf{Cat\'egorie} & \textbf{Commandes} \\
+\midrule
+Reconnaissance & \texttt{nmap}, \texttt{dig}, \texttt{dnsrecon}, \texttt{enum4linux}, \texttt{kerbrute}, \texttt{recon}, \texttt{searchsploit} \\
+Web & \texttt{nikto}, \texttt{dirb}, \texttt{gobuster}, \texttt{feroxbuster} \\
+Attaque d'acc\`es & \texttt{hydra}, \texttt{responder}, \texttt{ntlmrelayx}, \texttt{impacket-*}, \texttt{getnpusers}, \texttt{hashcat} \\
+Windows et AD & \texttt{smbclient}, \texttt{crackmapexec}, \texttt{netexec} (\texttt{nxc}), \texttt{evil-winrm}, \texttt{psexec.py}, \texttt{secretsdump}, \texttt{bloodhound}, \texttt{invoke-mimikatz}, \texttt{net} \\
+Bases de donn\'ees & \texttt{mysql}, \texttt{mysqldump}, \texttt{select}, \texttt{show}, \texttt{use} \\
+Syst\`eme & \texttt{ls}, \texttt{cd}, \texttt{cat}, \texttt{id}, \texttt{whoami}, \texttt{sudo}, \texttt{find}, \texttt{uname}, \texttt{dir}, \texttt{type}, \texttt{python3}, \texttt{ssh}, \texttt{nc} \\
+Jeu & \texttt{help}, \texttt{hint}, \texttt{desc}, \texttt{scores}, \texttt{clear}, \texttt{exit}, \texttt{logout} \\
+\bottomrule
+\end{tabularx}
+\caption{Commandes simul\'ees par le moteur historique.}
+\end{table}
+
+La syntaxe \texttt{commande?} (ou \texttt{commande ?}) affiche une documentation
+d\'etaill\'ee de l'outil (fonction \texttt{renderToolDoc}).
+
+\chapter{R\'ef\'erences}
+
+\begin{itemize}
+  \item OWASP, \emph{Top 10 Web Application Security Risks} : \url{https://owasp.org/Top10/}
+  \item OWASP, \emph{Top 10 for Large Language Model Applications} :
+        \url{https://owasp.org/www-project-top-10-for-large-language-model-applications/}
+  \item MITRE, \emph{ATT\&CK} : \url{https://attack.mitre.org/}
+  \item DVWA : \url{https://github.com/digininja/DVWA}
+  \item React : \url{https://react.dev/} --- Vite : \url{https://vite.dev/}
+  \item xterm.js : \url{https://xtermjs.org/}
+  \item MDN, \emph{Web Audio API} :
+        \url{https://developer.mozilla.org/docs/Web/API/Web_Audio_API}
+  \item MDN, \emph{Content Security Policy} :
+        \url{https://developer.mozilla.org/docs/Web/HTTP/CSP}
+  \item D\'ep\^ot du projet : \url{https://github.com/aziz3r/cyberquest} (version
+        autonome) et \url{https://github.com/JamaiAli/CyberquestProject} (d\'ep\^ot d'origine)
+\end{itemize}
+
+\end{document}
